@@ -1,6 +1,7 @@
-from PySide6.QtCore import (QCoreApplication, QEvent, QMetaObject, QSize, Qt)
-from PySide6.QtGui import (QFont, QKeyEvent)
-from PySide6.QtWidgets import (QApplication, QGridLayout, QLabel, QLineEdit, QMainWindow,QPushButton, QSizePolicy, QVBoxLayout, QWidget)
+from re import S
+from PySide6.QtCore import (QCoreApplication, QEvent, QLine, QMetaObject, QSize, Qt, QStringConverter)
+from PySide6.QtGui import (QBrush, QColor, QFont, QKeyEvent)
+from PySide6.QtWidgets import (QApplication, QGridLayout, QHBoxLayout, QHeaderView, QLabel, QLineEdit, QMainWindow,QPushButton, QSizePolicy, QSpacerItem, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
 import sys
 import sympy as sym
 
@@ -82,6 +83,54 @@ Limits_buttons_style = ("QPushButton{\n"
     "}\n"
     "\n"
     "")
+Roots_buttons_style = ("QPushButton{\n"
+    "   font: 87 32pt \"Arial Black\";\n"
+    "   color: rgb(255, 255, 255);\n"
+    "   background-color: rgb(0, 0, 0);\n"
+    "   border-radius: 35px;\n"
+    "}\n"
+    "\n"
+    "QPushButton:hover{\n"
+    "    color: rgb(255, 255, 255);\n"
+    "    background-color: rgb(26, 26, 26);\n"
+    "    border: 5px solid white\n"
+    "}\n"
+    "\n"
+    "\n"
+    "\n"
+    "QPushButton:hover:!pressed\n"
+    "{\n"
+    "    \n"
+    "    background-color: rgb(61, 61, 61);\n"
+    "    color: rgb(255,255,255);\n"
+    "border: 0px solid white\n"
+    "}\n"
+    "\n"
+    "")
+History_buttons_style = ("QPushButton{\n"
+                "   font: 87 28pt \"Arial Black\";\n"
+                "   color: rgb(255, 255, 255);\n"
+                "   background-color: rgb(0, 0, 0);\n"
+                "   border-radius: 35px;\n"
+                "}\n"
+                "\n"
+                "QPushButton:hover{\n"
+                "    color: rgb(255, 255, 255);\n"
+                "    background-color: rgb(26, 26, 26);\n"
+                "    border: 5px solid white\n"
+                "}\n"
+                "\n"
+                "\n"
+                "\n"
+                "QPushButton:hover:!pressed\n"
+                "{\n"
+                "    \n"
+                "    background-color: rgb(61, 61, 61);\n"
+                "    color: rgb(255,255,255);\n"
+                "border: 0px solid white\n"
+                "}\n"
+                "\n"
+                "")
 
 class Ui_Menu(QMainWindow):
     def __init__(self):
@@ -94,8 +143,8 @@ class Ui_Menu(QMainWindow):
         keys = [
             ("Differentiation and Integration", Qt.Key_A, self.show_dni),
             ("Limits", Qt.Key_B, self.show_limits),
-            ("Roots", Qt.Key_C, self.show_new_window),
-            ("History", Qt.Key_D, self.show_new_window),
+            ("Roots", Qt.Key_C, self.show_roots),
+            ("History", Qt.Key_D, self.show_history),
         ]
         for text, key, func in keys:
             Button = QPushButton(text=text, focusPolicy=Qt.NoFocus)
@@ -125,8 +174,15 @@ class Ui_Menu(QMainWindow):
         self.ui_limits = Ui_Limits()
         self.ui_limits.show()
     
-    def show_new_window(self):
-        pass
+    def show_roots(self):
+        self.hide()
+        self.ui_roots = Ui_Roots()
+        self.ui_roots.show()
+    
+    def show_history(self):
+        self.hide()
+        self.ui_history = Ui_History()
+        self.ui_history.show()
         
 class Ui_DnI(QWidget):
     
@@ -303,6 +359,7 @@ class Ui_Limits(QWidget):
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.InputLine.sizePolicy().hasHeightForWidth())
+        sizePolicy.setHeightForWidth(self.AtpointLine.sizePolicy().hasHeightForWidth())
         font = QFont()
         font.setPointSize(26)
         font.setBold(True)
@@ -427,7 +484,162 @@ class Ui_Limits(QWidget):
 class Ui_Roots(QWidget):
     def __init__(self):
         super().__init__()
+        self.setStyleSheet("background-color: rgb(26, 26, 26);")
+        self.resize(800, 800)
+        self.InputLine = QLineEdit(self)
+        self.OutputLine = QLineEdit(self)
         
+        sizePolicy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.InputLine.sizePolicy().hasHeightForWidth())
+        sizePolicy.setHeightForWidth(self.OutputLine.sizePolicy().hasHeightForWidth())
+        
+        font = QFont()
+        font.setFamily("Arial Black")
+        font.setPointSize(28)
+        font.setBold(True)
+        
+        
+        self.InputLine.setSizePolicy(sizePolicy)
+        self.InputLine.setFont(font)
+        self.InputLine.setStyleSheet("color: rgb(255, 255, 255);")
+        self.InputLine.setText("")
+        self.InputLine.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
+        
+        self.OutputLine.setSizePolicy(sizePolicy)
+        self.OutputLine.setFont(font)
+        self.OutputLine.setStyleSheet("color: rgb(255, 255, 255);")
+        self.OutputLine.setText("")
+        self.OutputLine.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
+        self.Space = QSpacerItem(0, 40, QSizePolicy.Minimum, QSizePolicy.Maximum)
+        self.Space_2 = QSpacerItem(0, 100, QSizePolicy.Minimum, QSizePolicy.Maximum)
+        
+        self.SolveButton = QPushButton(self, text = "Solve")
+        self.ExitButton = QPushButton(self, text="Exit")
+        
+        self.SolveButton.clicked.connect(self.solve_clicked)
+        self.ExitButton.clicked.connect(self.exit_clicked)
+        
+        sizePolicy = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.SolveButton.sizePolicy().hasHeightForWidth())
+        sizePolicy.setHeightForWidth(self.ExitButton.sizePolicy().hasHeightForWidth())
+        self.SolveButton.setSizePolicy(sizePolicy)
+        self.SolveButton.setStyleSheet(Roots_buttons_style)
+        self.ExitButton.setSizePolicy(sizePolicy)
+        self.ExitButton.setStyleSheet(Roots_buttons_style)
+        
+        
+        self.MainVerticalLayout = QVBoxLayout(self)
+        self.MainVerticalLayout.addItem(self.Space)
+        self.MainVerticalLayout.addWidget(self.InputLine)
+        self.MainVerticalLayout.addWidget(self.OutputLine)
+        self.MainVerticalLayout.addItem(self.Space_2)
+        self.MainVerticalLayout.addWidget(self.SolveButton)
+        self.MainVerticalLayout.addWidget(self.ExitButton)
+    
+    def exit_clicked(self):
+        self.hide()
+        self.ui_menu = Ui_Menu()
+        self.ui_menu.show()
+    
+    def solve_clicked(self):
+        data = self.InputLine.text()
+        answer= str(sym.solveset(data,x))
+        self.OutputLine.setText(answer)    
+
+class Ui_History(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.resize(600, 800)
+        self.TableWidget = QWidget(self)
+        self.TableWidget.setStyleSheet("QWidget {\n"
+                        "    \n"
+                        "    color: rgb(255, 255, 255);\n"
+                        "    background-color: rgb(0, 0, 0);\n"
+                        "    font: 87 16pt \"Arial Black\";\n"
+                        "}\n"
+                        "\n"
+                        "QHeaderView::section:all\n"
+                        "{\n"
+                        "    font: 87 16pt \"Arial Black\";\n"
+                        "    background-color: rgb(0, 0, 0);\n"
+                        "    color: rgb(255, 255, 255);\n"
+                        "}")
+                
+        self.TableVerticalLayout = QVBoxLayout(self.TableWidget)
+        self.Table = QTableWidget(self.TableWidget)
+        self.TableVerticalLayout.addWidget(self.Table)
+        self.setStyleSheet("background-color: rgb(0, 0, 0);")
+        
+        sizePolicy = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.MinimumExpanding)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.Table.sizePolicy().hasHeightForWidth())
+        self.Table.setSizePolicy(sizePolicy)
+        self.Table.setMinimumSize(QSize(0, 0))
+        self.Table.setAutoFillBackground(True)
+        self.Table.setStyleSheet("QWidget {\n"
+            "    \n"
+            "    color: rgb(255, 255, 255);\n"
+            "    background-color: rgb(0, 0, 0);\n"
+            "    font: 87 16pt \"Arial Black\";\n"
+            "}\n"
+            "\n"
+            "QHeaderView::section:all\n"
+            "{\n"
+            "    font: 87 16pt \"Arial Black\";\n"
+            "    background-color: rgb(0, 0, 0);\n"
+            "    color: rgb(255, 255, 255);\n"
+            "}")
+        self.Table.setLineWidth(1)
+        self.Table.setMidLineWidth(0)
+        self.Table.setRowCount(0)
+        self.Table.setColumnCount(3)
+        
+        self.Table.setHorizontalHeaderLabels(['Type', 'Function', 'Answer'])
+        
+        self.header = self.Table.horizontalHeader()       
+        self.header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        self.header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self.header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        
+        
+        
+        
+        
+        
+        
+        
+        self.ButtonWidget = QWidget(self)
+        self.ButtonHorizontalLayout = QHBoxLayout(self.ButtonWidget)
+        keys = [("Clear", self.clear_clicked),
+                ("Exit", self.exit_clicked)]
+        for text, func in keys:
+            self.button = QPushButton(self.ButtonWidget, text=text)
+            self.ButtonHorizontalLayout.addWidget(self.button)
+            self.button.clicked.connect(func)
+            sizePolicy = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+            sizePolicy.setHorizontalStretch(0)
+            sizePolicy.setVerticalStretch(0)
+            sizePolicy.setHeightForWidth(self.button.sizePolicy().hasHeightForWidth())
+            self.button.setSizePolicy(sizePolicy)
+            self.button.setMinimumSize(QSize(0, 100))
+            self.button.setStyleSheet(History_buttons_style)
+    
+        
+        self.MainVerticalLayout = QVBoxLayout(self)
+        self.MainVerticalLayout.addWidget(self.TableWidget)
+        self.MainVerticalLayout.addWidget(self.ButtonWidget)
+    def clear_clicked(self):
+        pass
+    
+    def exit_clicked(self):
+        self.hide()
+        self.ui_menu = Ui_Menu()
+        self.ui_menu.show()
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     w = Ui_Menu()
