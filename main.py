@@ -1,13 +1,14 @@
-from re import S
-from PySide6.QtCore import (QCoreApplication, QEvent, QLine, QMetaObject, QSize, Qt, QStringConverter)
-from PySide6.QtGui import (QBrush, QColor, QFont, QKeyEvent)
-from PySide6.QtWidgets import (QApplication, QGridLayout, QHBoxLayout, QHeaderView, QLabel, QLineEdit, QMainWindow,QPushButton, QSizePolicy, QSpacerItem, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
+import sqlite3
+from PySide6.QtCore import (QCoreApplication, QEvent, QMetaObject, QSize, Qt)
+from PySide6.QtGui import (QFont, QKeyEvent)
+from PySide6.QtWidgets import (QApplication, QGridLayout, QHBoxLayout, QHeaderView, QLabel, QLineEdit, QMainWindow, QMessageBox,QPushButton, QSizePolicy, QSpacerItem, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
 import sys
 import sympy as sym
+from sympy.core.sympify import SympifyError
 
 x = sym.Symbol('x')
 
-menu_window_style = """background-image: url("wallpaper.jpg"); 
+menu_window_style = """background-color: black; 
         background-repeat: no-repeat; 
         background-position: center;"""
 menu_button_style = ("QPushButton{\n"
@@ -35,6 +36,7 @@ menu_button_style = ("QPushButton{\n"
         "}\n"
         "\n"
         "")
+DnI_window_style = "background-color: rgb(26, 26, 26);"
 DnI_buttons_style = ("QPushButton{\n"
          "   font: 87 20pt \"Arial Black\";\n"
          "   color: rgb(255, 255, 255);\n"
@@ -83,8 +85,10 @@ Limits_buttons_style = ("QPushButton{\n"
     "}\n"
     "\n"
     "")
+Limits_window_style = "background-color: rgb(26, 26, 26);"
+Roots_window_style = "background-color: rgb(26, 26, 26);"
 Roots_buttons_style = ("QPushButton{\n"
-    "   font: 87 32pt \"Arial Black\";\n"
+    "   font: 87 24pt \"Arial Black\";\n"
     "   color: rgb(255, 255, 255);\n"
     "   background-color: rgb(0, 0, 0);\n"
     "   border-radius: 35px;\n"
@@ -107,34 +111,53 @@ Roots_buttons_style = ("QPushButton{\n"
     "}\n"
     "\n"
     "")
+History_window_style = "background-color: rgb(0, 0, 0);"
+History_table_style = ("QWidget {\n"
+            "    \n"
+            "    color: rgb(255, 255, 255);\n"
+            "    background-color: rgb(0, 0, 0);\n"
+            "    font: 87 16pt \"Arial Black\";\n"
+            "}\n"
+            "\n"
+            "QHeaderView::section:all\n"
+            "{\n"
+            "    font: 87 16pt \"Arial Black\";\n"
+            "    background-color: rgb(0, 0, 0);\n"
+            "    color: rgb(255, 255, 255);\n"
+            "}")
 History_buttons_style = ("QPushButton{\n"
-                "   font: 87 28pt \"Arial Black\";\n"
-                "   color: rgb(255, 255, 255);\n"
-                "   background-color: rgb(0, 0, 0);\n"
-                "   border-radius: 35px;\n"
-                "}\n"
-                "\n"
-                "QPushButton:hover{\n"
-                "    color: rgb(255, 255, 255);\n"
-                "    background-color: rgb(26, 26, 26);\n"
-                "    border: 5px solid white\n"
-                "}\n"
-                "\n"
-                "\n"
-                "\n"
-                "QPushButton:hover:!pressed\n"
-                "{\n"
-                "    \n"
-                "    background-color: rgb(61, 61, 61);\n"
-                "    color: rgb(255,255,255);\n"
-                "border: 0px solid white\n"
-                "}\n"
-                "\n"
-                "")
+    "   font: 87 28pt \"Arial Black\";\n"
+    "   color: rgb(255, 255, 255);\n"
+    "   background-color: rgb(0, 0, 0);\n"
+    "   border-radius: 35px;\n"
+    "}\n"
+    "\n"
+    "QPushButton:hover{\n"
+    "    color: rgb(255, 255, 255);\n"
+    "    background-color: rgb(26, 26, 26);\n"
+    "    border: 5px solid white\n"
+    "}\n"
+    "\n"
+    "\n"
+    "\n"
+    "QPushButton:hover:!pressed\n"
+    "{\n"
+    "    \n"
+    "    background-color: rgb(61, 61, 61);\n"
+    "    color: rgb(255,255,255);\n"
+    "border: 0px solid white\n"
+    "}\n"
+    "\n"
+    "")
 
+class Ui_Warning(QWidget):
+    def warning(self):
+        self.warning = QMessageBox.critical(self, "F in chat", "Maybe the function is wrong or it is too heavy for our calculator! ", buttons= QMessageBox.Ok, defaultButton=QMessageBox.Ok)
+          
 class Ui_Menu(QMainWindow):
     def __init__(self):
         super().__init__()
+        history_widget = Ui_History()
         self.setStyleSheet(menu_window_style)
         self.resize(800, 600)
         self.MainWidget = QWidget(self)
@@ -189,7 +212,7 @@ class Ui_DnI(QWidget):
     def __init__(self):
         super().__init__()
         
-        self.setStyleSheet("background-color: rgb(26, 26, 26);")
+        self.setStyleSheet(DnI_window_style)
         self.resize(800, 800)
         
         
@@ -302,21 +325,64 @@ class Ui_DnI(QWidget):
         if Widget:
             event = QKeyEvent(QEvent.KeyPress, Key, Qt.NoModifier, text)
             QCoreApplication.postEvent(Widget, event)
+            
     def diff_clicked(self):
+        con = sqlite3.connect('History.db')
+        c = con.cursor()
         data = self.InputLine.text()
-        ans = str(sym.diff(data, x))
-        self.OutputLine.setText(ans)
+        old = self.InputLine.text()
+        
+        
+        try:
+            ans = str(sym.diff(data, x))
+        except(RuntimeError, TypeError, NameError, UnboundLocalError, SyntaxError, SympifyError):
+            self.warning = Ui_Warning()
+            self.warning.warning()
+            ans = "No Output"
+        finally:
+            self.OutputLine.setText(ans)
+        
+        new = ans = str(sym.diff(data, x))
+        
+        type = 'dy/dx'
+        c.execute("insert into history values('" + type + "','" + old + "','" + new + "')")
+        con.commit()
+        
     def inte_clicked(self):
+        con = sqlite3.connect('History.db')
+        c = con.cursor()
         data = self.InputLine.text()
-        ans = str(sym.integrate(data, x))
-        self.OutputLine.setText(ans)
+        old = self.InputLine.text()
+        
+        try:
+            ans = str(sym.integrate(data, x))
+            if ans == f"Integral({data}, x)":
+                raise TypeError
+        except(RuntimeError, TypeError, NameError, UnboundLocalError, SyntaxError, SympifyError):
+            ans = "No Output"
+            self.warning = Ui_Warning()
+            self.warning.warning()    
+        finally:
+            self.OutputLine.setText(ans)
+        
+        
+        new = ans = str(sym.integrate(data, x))
+        type = '∫dx'
+        
+        
+        c.execute("insert into history values('" + type + "','" + old + "','" + new + "')")
+        con.commit()
+        
     def clear_clicked(self):
         self.InputLine.setText("")
+        self.OutputLine.setText("")
+        
     def backspace_clicked(self):
         position = self.InputLine.cursorPosition()
         data = self.InputLine.text()
         data = data[:position-1] + data[position:]
         self.InputLine.setText(data)
+        
     def exit_clicked(self):
         self.hide()
         self.ui_menu = Ui_Menu()
@@ -326,7 +392,7 @@ class Ui_Limits(QWidget):
     def __init__(self):
         super().__init__()
         
-        self.setStyleSheet("background-color: rgb(26, 26, 26);")
+        self.setStyleSheet(Limits_window_style)
         self.resize(800, 800)
         self.InputWidget = QWidget(self)
         self.InputGridLayout = QGridLayout(self.InputWidget)
@@ -462,13 +528,32 @@ class Ui_Limits(QWidget):
     def lim_clicked(self):
         data = self.InputLine.text()
         data_2 = self.AtpointLine.text()
-        ans=str(sym.limit(data, x, data_2))
-        ans = ("Answer: ") + ans
-        self.InputLine.setText(ans)
+        old = data
+        self.FunctionLabel.setText("Answer")
+        
+        try:
+            ans = str(sym.limit(data, x, data_2))
+        except(RuntimeError, TypeError, NameError, UnboundLocalError, SyntaxError, SympifyError):
+            self.warning = Ui_Warning()
+            self.warning.warning()
+            ans = "No Output"
+        finally:
+            self.InputLine.setText(ans)
+        
+        
+        
+        
+        new = ans
+        con = sqlite3.connect('History.db')
+        c = con.cursor()
+        type = 'Limits'
+        c.execute("insert into history values('" + type + "','" + old + "','" + new + "')")
+        con.commit()
         
     def clear_clicked(self):
         self.InputLine.setText("")
         self.AtpointLine.setText("")
+        self.FunctionLabel.setText("Function")
         
     def backspace_clicked(self):
         position = self.InputLine.cursorPosition()
@@ -484,7 +569,7 @@ class Ui_Limits(QWidget):
 class Ui_Roots(QWidget):
     def __init__(self):
         super().__init__()
-        self.setStyleSheet("background-color: rgb(26, 26, 26);")
+        self.setStyleSheet(Roots_window_style)
         self.resize(800, 800)
         self.InputLine = QLineEdit(self)
         self.OutputLine = QLineEdit(self)
@@ -515,30 +600,31 @@ class Ui_Roots(QWidget):
         self.Space = QSpacerItem(0, 40, QSizePolicy.Minimum, QSizePolicy.Maximum)
         self.Space_2 = QSpacerItem(0, 100, QSizePolicy.Minimum, QSizePolicy.Maximum)
         
-        self.SolveButton = QPushButton(self, text = "Solve")
-        self.ExitButton = QPushButton(self, text="Exit")
-        
-        self.SolveButton.clicked.connect(self.solve_clicked)
-        self.ExitButton.clicked.connect(self.exit_clicked)
-        
-        sizePolicy = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.SolveButton.sizePolicy().hasHeightForWidth())
-        sizePolicy.setHeightForWidth(self.ExitButton.sizePolicy().hasHeightForWidth())
-        self.SolveButton.setSizePolicy(sizePolicy)
-        self.SolveButton.setStyleSheet(Roots_buttons_style)
-        self.ExitButton.setSizePolicy(sizePolicy)
-        self.ExitButton.setStyleSheet(Roots_buttons_style)
-        
-        
         self.MainVerticalLayout = QVBoxLayout(self)
         self.MainVerticalLayout.addItem(self.Space)
         self.MainVerticalLayout.addWidget(self.InputLine)
         self.MainVerticalLayout.addWidget(self.OutputLine)
         self.MainVerticalLayout.addItem(self.Space_2)
-        self.MainVerticalLayout.addWidget(self.SolveButton)
-        self.MainVerticalLayout.addWidget(self.ExitButton)
+        
+        keys = [
+            ("Solve", self.solve_clicked),
+            ("Clear", self.clear_clicked),
+            ("Exit", self.exit_clicked)
+            ]
+        
+        for text, func in keys:
+            self.Button = QPushButton(self, text = text)
+            self.Button.clicked.connect(func)
+            
+            sizePolicy = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+            sizePolicy.setHorizontalStretch(0)
+            sizePolicy.setVerticalStretch(0)
+            sizePolicy.setHeightForWidth(self.Button.sizePolicy().hasHeightForWidth())
+
+            self.Button.setSizePolicy(sizePolicy)
+            self.Button.setStyleSheet(Roots_buttons_style)
+            
+            self.MainVerticalLayout.addWidget(self.Button)
     
     def exit_clicked(self):
         self.hide()
@@ -547,32 +633,31 @@ class Ui_Roots(QWidget):
     
     def solve_clicked(self):
         data = self.InputLine.text()
-        answer= str(sym.solveset(data,x))
-        self.OutputLine.setText(answer)    
+        
+        try:
+            answer = str(sym.solveset(data, x))
+        except(RuntimeError, TypeError, NameError, UnboundLocalError, SyntaxError, SympifyError):
+            self.warning = Ui_Warning()
+            self.warning.warning()
+            ans = "No Output"
+        finally:
+            self.OutputLine.setText(answer)
+        
+    def clear_clicked(self):
+        self.InputLine.setText("")
+        self.OutputLine.setText("")
 
 class Ui_History(QWidget):
     def __init__(self):
         super().__init__()
         self.resize(600, 800)
         self.TableWidget = QWidget(self)
-        self.TableWidget.setStyleSheet("QWidget {\n"
-                        "    \n"
-                        "    color: rgb(255, 255, 255);\n"
-                        "    background-color: rgb(0, 0, 0);\n"
-                        "    font: 87 16pt \"Arial Black\";\n"
-                        "}\n"
-                        "\n"
-                        "QHeaderView::section:all\n"
-                        "{\n"
-                        "    font: 87 16pt \"Arial Black\";\n"
-                        "    background-color: rgb(0, 0, 0);\n"
-                        "    color: rgb(255, 255, 255);\n"
-                        "}")
+        self.TableWidget.setStyleSheet(History_table_style)
                 
         self.TableVerticalLayout = QVBoxLayout(self.TableWidget)
         self.Table = QTableWidget(self.TableWidget)
         self.TableVerticalLayout.addWidget(self.Table)
-        self.setStyleSheet("background-color: rgb(0, 0, 0);")
+        self.setStyleSheet(History_window_style)
         
         sizePolicy = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.MinimumExpanding)
         sizePolicy.setHorizontalStretch(0)
@@ -581,19 +666,7 @@ class Ui_History(QWidget):
         self.Table.setSizePolicy(sizePolicy)
         self.Table.setMinimumSize(QSize(0, 0))
         self.Table.setAutoFillBackground(True)
-        self.Table.setStyleSheet("QWidget {\n"
-            "    \n"
-            "    color: rgb(255, 255, 255);\n"
-            "    background-color: rgb(0, 0, 0);\n"
-            "    font: 87 16pt \"Arial Black\";\n"
-            "}\n"
-            "\n"
-            "QHeaderView::section:all\n"
-            "{\n"
-            "    font: 87 16pt \"Arial Black\";\n"
-            "    background-color: rgb(0, 0, 0);\n"
-            "    color: rgb(255, 255, 255);\n"
-            "}")
+        self.Table.setStyleSheet(History_table_style)
         self.Table.setLineWidth(1)
         self.Table.setMidLineWidth(0)
         self.Table.setRowCount(0)
@@ -601,17 +674,24 @@ class Ui_History(QWidget):
         
         self.Table.setHorizontalHeaderLabels(['Type', 'Function', 'Answer'])
         
+        con = sqlite3.connect('History.db')
+        c = con.cursor()
+        c.execute(
+            "CREATE TABLE IF NOT EXISTS 'history' ('type'	TEXT,'old'	TEXT,'new'	TEXT)")
+        con.commit()
+        result = c.execute("SELECT * FROM history")
+
+        self.Table.setRowCount(0)
+        for row_number, row_data in enumerate(result):
+            self.Table.insertRow(row_number)
+            for colum_number, data in enumerate(row_data):
+                self.Table.setItem(
+                    row_number, colum_number, QTableWidgetItem(str(data)))
+        
         self.header = self.Table.horizontalHeader()       
         self.header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
-        
-        
-        
-        
-        
-        
-        
         
         self.ButtonWidget = QWidget(self)
         self.ButtonHorizontalLayout = QHBoxLayout(self.ButtonWidget)
@@ -633,13 +713,18 @@ class Ui_History(QWidget):
         self.MainVerticalLayout = QVBoxLayout(self)
         self.MainVerticalLayout.addWidget(self.TableWidget)
         self.MainVerticalLayout.addWidget(self.ButtonWidget)
+    
     def clear_clicked(self):
-        pass
+        con = sqlite3.connect('History.db')
+        c = con.cursor()
+        c.execute("DELETE FROM history")
+        con.commit()
     
     def exit_clicked(self):
         self.hide()
         self.ui_menu = Ui_Menu()
         self.ui_menu.show()
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     w = Ui_Menu()
